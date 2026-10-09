@@ -155,6 +155,3 @@ See [`.env.example`](.env.example). Important locals defaults:
 
 ---
 
-## License
-
-MIT
