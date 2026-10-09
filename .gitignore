@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+mlruns/
+
+# Node
+node_modules/
+dist/
+
+# Generated data & model artifacts (keep folder placeholders)
+backend/data/*.csv
+backend/artifacts/*
+!backend/data/.gitkeep
+!backend/artifacts/.gitkeep
+
+# Env / secrets
+.env
+.env.local
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# This workspace also stores personal resume variants — never publish them
+Apple/
+Belvedere/
+Chartbeat/
+D3/
+Databricks/
+Dec 25/
+Dell/
+Duolingo/
+GPU/
+HPE/
+Infitus/
+Jun 26/
+LPL/
+Lucid Software/
+Parafin/
+Pinterest/
+Stubhub/
+Susquehanna/
+*.pdf
+*.docx

@@ -1,0 +1,50 @@
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.19.0
+    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow/mlflow.db --default-artifact-root /mlflow/artifacts
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_ARTIFACT_PATH: /app/artifacts/model.joblib
+      MODEL_VERSION_PATH: /app/artifacts/version.txt
+      REFERENCE_DATA_PATH: /app/data/reference.csv
+      DRIFT_BUFFER_PATH: /app/data/drift_buffer.csv
+      DRIFT_THRESHOLD: "0.25"
+      DRIFT_WINDOW_SIZE: "100"
+      GITHUB_REPO: ${GITHUB_REPO:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      RETRAIN_WEBHOOK_SECRET: ${RETRAIN_WEBHOOK_SECRET:-change-me-in-production}
+    volumes:
+      - model_artifacts:/app/artifacts
+      - drift_data:/app/data
+    depends_on:
+      mlflow:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  mlflow_data:
+  model_artifacts:
+  drift_data:

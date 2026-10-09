@@ -1,0 +1,74 @@
+name: Retrain on Drift
+
+on:
+  workflow_dispatch:
+    inputs:
+      drift_score:
+        description: "Evidently drift score that triggered retrain"
+        required: false
+        default: "0.0"
+      trigger_source:
+        description: "Source of the retrain trigger"
+        required: false
+        default: "manual"
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Generate training data
+        working-directory: backend
+        run: |
+          python -c "
+          from scripts.generate_data import generate_reference_dataset, generate_drifted_batch
+          import pandas as pd
+          ref = generate_reference_dataset(6000, 0.02, 42)
+          drift = generate_drifted_batch(2000, 0.06, 99)
+          pd.concat([ref, drift]).to_csv('data/training.csv', index=False)
+          "
+
+      - name: Train model and log to MLflow
+        working-directory: backend
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: |
+          export MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI:-file:./mlruns}"
+          python scripts/train_model.py --data data/training.csv
+
+      - name: Commit retrained model artifact
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backend/artifacts/ 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No artifact changes to commit"
+          else
+            git commit -m "chore(ml): auto-retrain after drift (score=${{ inputs.drift_score }})"
+            git push
+          fi
+
+      - name: Hot-swap model on running API
+        if: ${{ secrets.API_RELOAD_URL != '' }}
+        run: |
+          curl -sf -X POST "${{ secrets.API_RELOAD_URL }}/model/reload" || echo "API reload skipped"
+
+      - name: Notify webhook (local fallback)
+        if: ${{ secrets.RETRAIN_WEBHOOK_URL != '' }}
+        run: |
+          curl -sf -X POST "${{ secrets.RETRAIN_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{"secret":"${{ secrets.RETRAIN_WEBHOOK_SECRET }}"}'
