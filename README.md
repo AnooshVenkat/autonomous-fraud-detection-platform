@@ -18,27 +18,6 @@ Built as a full-stack MLOps portfolio project demonstrating production-style obs
 | Retraining | Local webhook or GitHub Actions → train → MLflow log → hot-swap |
 | Model versions | Short versions (`v1`, `v2`, …) swapped with **zero downtime** |
 
----
-
-## Architecture
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  React Dashboard │────▶│  FastAPI Service  │────▶│  LightGBM Model │
-│  (Simulator)     │     │  /predict         │     │  (hot-swappable)│
-└─────────────────┘     └────────┬─────────┘     └─────────────────┘
-                                 │
-                                 ▼
-                        ┌──────────────────┐
-                        │  Evidently AI     │
-                        │  Drift Monitor    │
-                        └────────┬─────────┘
-                                 │ drift ≥ 25%
-                                 ▼
-                        ┌──────────────────┐     ┌─────────────────┐
-                        │  Retrain Trigger  │────▶│  MLflow         │
-                        │  (Actions / hook) │     │  Experiment Log │
-                        └──────────────────┘     └─────────────────┘
 ```
 
 ### Flow
